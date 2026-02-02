@@ -1,8 +1,6 @@
-// API Configuration
-// Change this IP to your computer's local network IP
-const SERVER_IP = '192.168.110.186';
-export const API_URL = `http://${SERVER_IP}:3001`;
-export const SOCKET_URL = `http://${SERVER_IP}:3001`;
+// API Configuration (from env; use localhost for local dev)
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
+export const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3001';
 
 // Supabase Configuration
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';

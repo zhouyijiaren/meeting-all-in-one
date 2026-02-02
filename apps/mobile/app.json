@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Video Conference",
-    "slug": "video-conference",
+    "name": "Meeting",
+    "slug": "meeting",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

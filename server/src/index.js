@@ -2,10 +2,14 @@ import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 import cors from 'cors';
 import { setupSocketHandlers, getRoomInfo } from './socket.js';
 import { createRoom, getRoom } from './supabase.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const server = createServer(app);
 
@@ -18,6 +22,12 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json());
+
+// Static frontend (when deployed with Docker; public/ may not exist in local dev)
+const publicDir = path.join(__dirname, '..', 'public');
+if (existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+}
 
 // Health check
 app.get('/health', (req, res) => {
@@ -56,6 +66,16 @@ app.get('/api/rooms/:roomId', async (req, res) => {
 
 // Setup Socket.io handlers
 setupSocketHandlers(io);
+
+// SPA fallback: serve index.html for non-API routes (only when public exists)
+if (existsSync(publicDir)) {
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket')) return next();
+    res.sendFile(path.join(publicDir, 'index.html'), (err) => {
+      if (err) next();
+    });
+  });
+}
 
 const PORT = process.env.PORT || 3001;
 

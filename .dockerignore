@@ -1,0 +1,13 @@
+node_modules
+.git
+.env
+.env.*
+.expo
+dist
+build
+web-build
+*.log
+.gitignore
+README.md
+Dockerfile
+.dockerignore

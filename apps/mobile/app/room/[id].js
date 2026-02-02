@@ -17,9 +17,18 @@ import { COLORS } from '../../src/utils/config';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHAT_WIDTH = 320;
 
+const LAYOUT_MODES = [
+  { key: 'grid', label: '九宫格' },
+  { key: 'horizontal', label: '横向' },
+  { key: 'vertical', label: '纵向' },
+  { key: 'speaker', label: '左大右列' },
+];
+
 export default function RoomScreen() {
   const { id: roomId, userName, userId } = useLocalSearchParams();
   const [isChatVisible, setIsChatVisible] = useState(false);
+  const [layoutMode, setLayoutMode] = useState('grid');
+  const [focusedId, setFocusedId] = useState(null);
   const [error, setError] = useState(null);
 
   const {
@@ -109,15 +118,28 @@ export default function RoomScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.roomTitle}>Meeting Room</Text>
+          <Text style={styles.roomTitle}>Meeting</Text>
           <TouchableOpacity onPress={handleCopyRoomId}>
-            <Text style={styles.roomId}>Room: {roomId} (tap to copy)</Text>
+            <Text style={styles.roomId}>房间: {roomId} (点击复制)</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.participantCount}>
-          <Text style={styles.participantCountText}>
-            {participants.length + 1} participant{participants.length !== 0 ? 's' : ''}
-          </Text>
+        <View style={styles.layoutRow}>
+          {LAYOUT_MODES.map(({ key, label }) => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.layoutButton, layoutMode === key && styles.layoutButtonActive]}
+              onPress={() => setLayoutMode(key)}
+            >
+              <Text style={[styles.layoutLabel, layoutMode === key && styles.layoutLabelActive]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          <View style={styles.participantCount}>
+            <Text style={styles.participantCountText}>
+              {participants.length + 1} 人
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -130,6 +152,9 @@ export default function RoomScreen() {
             remoteStreams={remoteStreams}
             participants={participants}
             userName={userName}
+            layoutMode={layoutMode}
+            focusedId={focusedId}
+            onFocusParticipant={setFocusedId}
           />
         </View>
 
@@ -167,13 +192,35 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
+    padding: 12,
+    paddingBottom: 8,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.surfaceLight,
+  },
+  layoutRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  layoutButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: COLORS.surfaceLight,
+  },
+  layoutButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  layoutLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  layoutLabelActive: {
+    color: COLORS.text,
+    fontWeight: '600',
   },
   roomTitle: {
     fontSize: 18,

@@ -1,13 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
+const supabaseKey = (process.env.SUPABASE_ANON_KEY || '').trim();
+const isValidUrl = supabaseUrl.startsWith('https://') || supabaseUrl.startsWith('http://');
 
-if (!supabaseUrl || !supabaseKey) {
+if (!isValidUrl || !supabaseKey || supabaseUrl.includes('your_supabase')) {
   console.warn('Warning: Supabase credentials not configured. Database features disabled.');
 }
 
-export const supabase = supabaseUrl && supabaseKey
+export const supabase = isValidUrl && supabaseKey && !supabaseUrl.includes('your_supabase')
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 

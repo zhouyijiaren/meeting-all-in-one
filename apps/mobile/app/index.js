@@ -35,7 +35,7 @@ export default function HomeScreen() {
     setIsLoading(true);
     try {
       const userId = generateId();
-      const room = await apiService.createRoom(`${userName}'s Meeting`, userId);
+      const room = await apiService.createRoom('Meeting', userId);
 
       router.push({
         pathname: '/room/[id]',
@@ -78,8 +78,8 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Video Conference</Text>
-        <Text style={styles.subtitle}>Connect with anyone, anywhere</Text>
+        <Text style={styles.title}>Meeting</Text>
+        <Text style={styles.subtitle}>创建或加入会议</Text>
 
         <View style={styles.form}>
           <Text style={styles.label}>Your Name</Text>
@@ -98,7 +98,7 @@ export default function HomeScreen() {
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'Creating...' : 'Create New Meeting'}
+              {isLoading ? '创建中...' : '创建会议'}
             </Text>
           </TouchableOpacity>
 
@@ -123,7 +123,7 @@ export default function HomeScreen() {
             onPress={handleJoinRoom}
             disabled={isLoading}
           >
-            <Text style={styles.buttonText}>Join Meeting</Text>
+            <Text style={styles.buttonText}>加入会议</Text>
           </TouchableOpacity>
         </View>
       </View>
