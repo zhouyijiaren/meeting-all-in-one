@@ -37,6 +37,18 @@ class ApiService {
     }
   }
 
+  async getRoomByShortCode(shortCode) {
+    try {
+      const code = String(shortCode || '').trim().toUpperCase();
+      const response = await fetch(`${API_URL}/api/rooms/by-code/${encodeURIComponent(code)}`);
+      if (!response.ok) throw new Error('Room not found');
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting room by short code:', error);
+      throw error;
+    }
+  }
+
   async checkHealth() {
     try {
       const response = await fetch(`${API_URL}/health`);

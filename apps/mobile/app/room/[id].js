@@ -12,6 +12,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { VideoGrid, ControlBar, ChatPanel } from '../../src/components';
 import { useWebRTC, useChat } from '../../src/hooks';
+import { apiService } from '../../src/services/api';
 import { COLORS } from '../../src/utils/config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -29,7 +30,13 @@ export default function RoomScreen() {
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [layoutMode, setLayoutMode] = useState('grid');
   const [focusedId, setFocusedId] = useState(null);
+  const [shortCode, setShortCode] = useState('');
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!roomId) return;
+    apiService.getRoom(roomId).then((r) => r.shortCode && setShortCode(r.shortCode)).catch(() => {});
+  }, [roomId]);
 
   const {
     localStream,
@@ -90,10 +97,19 @@ export default function RoomScreen() {
     }
   };
 
-  const handleCopyRoomId = () => {
+  const getShareUrl = () => {
+    if (shortCode && typeof window !== 'undefined' && window.location?.origin) {
+      return `${window.location.origin}/r/${shortCode}`;
+    }
+    return shortCode ? `/r/${shortCode}` : roomId;
+  };
+
+  const handleCopyShareLink = () => {
+    const url = getShareUrl();
+    const toCopy = url.startsWith('http') ? url : (typeof window !== 'undefined' && window.location?.origin ? `${window.location.origin}${url}` : url);
     if (Platform.OS === 'web' && navigator.clipboard) {
-      navigator.clipboard.writeText(roomId);
-      window.alert('Room ID copied to clipboard!');
+      navigator.clipboard.writeText(toCopy);
+      window.alert('分享链接已复制');
     }
   };
 
@@ -119,8 +135,10 @@ export default function RoomScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.roomTitle}>Meeting</Text>
-          <TouchableOpacity onPress={handleCopyRoomId}>
-            <Text style={styles.roomId}>房间: {roomId} (点击复制)</Text>
+          <TouchableOpacity onPress={handleCopyShareLink}>
+            <Text style={styles.roomId}>
+              {shortCode ? `分享: /r/${shortCode} (点击复制链接)` : `房间: ${roomId} (点击复制)`}
+            </Text>
           </TouchableOpacity>
         </View>
         <View style={styles.layoutRow}>

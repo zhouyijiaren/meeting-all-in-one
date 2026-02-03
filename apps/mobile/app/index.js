@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '../src/utils/config';
-import { generateId, generateRoomCode } from '../src/utils/helpers';
+import { generateId, untitledName } from '../src/utils/helpers';
 import { apiService } from '../src/services/api';
 
 export default function HomeScreen() {
@@ -27,21 +27,17 @@ export default function HomeScreen() {
   };
 
   const handleCreateRoom = async () => {
-    if (!userName.trim()) {
-      showAlert('Error', 'Please enter your name');
-      return;
-    }
-
     setIsLoading(true);
     try {
       const userId = generateId();
       const room = await apiService.createRoom('Meeting', userId);
+      const displayName = (userName || '').trim() || untitledName();
 
       router.push({
         pathname: '/room/[id]',
         params: {
           id: room.id,
-          userName: userName.trim(),
+          userName: displayName,
           userId,
         },
       });
@@ -53,25 +49,38 @@ export default function HomeScreen() {
   };
 
   const handleJoinRoom = async () => {
-    if (!userName.trim()) {
-      showAlert('Error', 'Please enter your name');
-      return;
-    }
-
     if (!roomCode.trim()) {
-      showAlert('Error', 'Please enter a room code');
+      showAlert('Error', '请输入房间码或短链码');
       return;
     }
 
     const userId = generateId();
+    const displayName = (userName || '').trim() || untitledName();
+    const code = roomCode.trim();
+
+    // 若是短码（4–8 位字母数字），先按短码解析
+    if (/^[A-Za-z0-9]{4,8}$/.test(code)) {
+      setIsLoading(true);
+      try {
+        const data = await apiService.getRoomByShortCode(code);
+        router.push({
+          pathname: '/room/[id]',
+          params: { id: data.id, userName: displayName, userId },
+        });
+      } catch {
+        router.push({
+          pathname: '/room/[id]',
+          params: { id: code, userName: displayName, userId },
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
 
     router.push({
       pathname: '/room/[id]',
-      params: {
-        id: roomCode.trim(),
-        userName: userName.trim(),
-        userId,
-      },
+      params: { id: code, userName: displayName, userId },
     });
   };
 
@@ -82,12 +91,12 @@ export default function HomeScreen() {
         <Text style={styles.subtitle}>创建或加入会议</Text>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Your Name</Text>
+          <Text style={styles.label}>你的名字（可选）</Text>
           <TextInput
             style={styles.input}
             value={userName}
             onChangeText={setUserName}
-            placeholder="Enter your name"
+            placeholder="不填则使用随机名称"
             placeholderTextColor={COLORS.textSecondary}
             autoCapitalize="words"
           />
@@ -108,12 +117,12 @@ export default function HomeScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <Text style={styles.label}>Room Code</Text>
+          <Text style={styles.label}>房间码或短链码</Text>
           <TextInput
             style={styles.input}
             value={roomCode}
             onChangeText={setRoomCode}
-            placeholder="Enter room code"
+            placeholder="如 ABC12X 或完整房间 ID"
             placeholderTextColor={COLORS.textSecondary}
             autoCapitalize="characters"
           />

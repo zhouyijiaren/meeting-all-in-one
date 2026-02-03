@@ -10,6 +10,31 @@ import { setupSocketHandlers, getRoomInfo } from './socket.js';
 import { createRoom, getRoom } from './supabase.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// 短码 <-> 房间 ID 映射（内存，重启清空）
+const shortCodeToRoomId = new Map();
+const roomIdToShortCode = new Map();
+const SHORT_CODE_CHARS = '0123456789';
+const SHORT_CODE_LEN = 4;
+
+function generateShortCode() {
+  let code = '';
+  for (let i = 0; i < SHORT_CODE_LEN; i++) {
+    code += SHORT_CODE_CHARS[Math.floor(Math.random() * SHORT_CODE_CHARS.length)];
+  }
+  return code;
+}
+
+function ensureShortCode(roomId) {
+  let code = roomIdToShortCode.get(roomId);
+  if (code) return code;
+  do {
+    code = generateShortCode();
+  } while (shortCodeToRoomId.has(code));
+  shortCodeToRoomId.set(code, roomId);
+  roomIdToShortCode.set(roomId, code);
+  return code;
+}
 const app = express();
 const server = createServer(app);
 
@@ -39,22 +64,35 @@ app.post('/api/rooms', async (req, res) => {
   try {
     const { name, hostId } = req.body;
     const room = await createRoom(name || 'New Meeting', hostId);
-    res.json(room);
+    const shortCode = ensureShortCode(room.id);
+    res.json({ ...room, shortCode });
   } catch (error) {
     console.error('Error creating room:', error);
     res.status(500).json({ error: 'Failed to create room' });
   }
 });
 
-// Get room info
+// 通过短码解析房间 ID（短链入会用）
+app.get('/api/rooms/by-code/:shortCode', (req, res) => {
+  const code = (req.params.shortCode || '').toUpperCase().trim();
+  const roomId = shortCodeToRoomId.get(code);
+  if (!roomId) {
+    return res.status(404).json({ error: 'Room not found' });
+  }
+  res.json({ id: roomId });
+});
+
+// Get room info（含 shortCode 便于分享）
 app.get('/api/rooms/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
     const room = await getRoom(roomId);
     const liveInfo = getRoomInfo(roomId);
+    const shortCode = roomIdToShortCode.get(roomId) || ensureShortCode(roomId);
 
     res.json({
       ...room,
+      shortCode,
       participants: liveInfo?.participants || [],
       participantCount: liveInfo?.count || 0
     });
