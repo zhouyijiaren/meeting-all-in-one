@@ -58,6 +58,18 @@ class ApiService {
       return null;
     }
   }
+
+  /** 从服务端拉取 ICE 配置（含 TURN），由服务端统一下发 */
+  async getIceServers() {
+    try {
+      const response = await fetch(`${API_URL}/api/ice-servers`);
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (error) {
+      console.warn('Failed to fetch ICE servers, using defaults:', error?.message);
+      return null;
+    }
+  }
 }
 
 export const apiService = new ApiService();

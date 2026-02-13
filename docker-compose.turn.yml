@@ -1,0 +1,16 @@
+# 本地 TURN 服务（coturn），用于验证跨网/强制走 TURN 是否正常
+# 使用：docker compose -f docker-compose.turn.yml up -d
+# 本机测：保持 turn/coturn.conf 里 external-ip=127.0.0.1
+# 另一台设备测：把 turn/coturn.conf 的 external-ip 改成你本机的局域网 IP（如 192.168.1.100）
+
+services:
+  coturn:
+    image: coturn/coturn:latest
+    container_name: meeting-turn
+    ports:
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "49152-49200:49152-49200/udp"
+    volumes:
+      - ./turn/coturn.conf:/etc/coturn/turnserver.conf:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]

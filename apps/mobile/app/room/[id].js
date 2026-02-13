@@ -46,12 +46,14 @@ export default function RoomScreen() {
     isVideoEnabled,
     isScreenSharing,
     isConnected,
+    connectionInfo,
     connect,
     disconnect,
     toggleAudio,
     toggleVideo,
     toggleScreenShare,
   } = useWebRTC(roomId, userId, userName);
+  const [showConnectionInfo, setShowConnectionInfo] = useState(false);
 
   const { messages, sendMessage } = useChat();
 
@@ -140,6 +142,22 @@ export default function RoomScreen() {
               {shortCode ? `分享: /r/${shortCode} (点击复制链接)` : `房间: ${roomId} (点击复制)`}
             </Text>
           </TouchableOpacity>
+          {connectionInfo && (
+            <TouchableOpacity onPress={() => setShowConnectionInfo(!showConnectionInfo)} style={styles.connectionInfoToggle}>
+              <Text style={styles.connectionInfoToggleText}>
+                {showConnectionInfo ? '▼ 隐藏连接配置' : '▶ 查看连接配置 (API / Socket / ICE)'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {showConnectionInfo && connectionInfo && (
+            <View style={styles.connectionInfoBox}>
+              <Text style={styles.connectionInfoLabel}>API: {connectionInfo.apiUrl}</Text>
+              <Text style={styles.connectionInfoLabel}>Socket: {connectionInfo.socketUrl}</Text>
+              {(connectionInfo.iceLines || []).map((line, i) => (
+                <Text key={i} style={styles.connectionInfoIce}>ICE: {line}</Text>
+              ))}
+            </View>
+          )}
         </View>
         <View style={styles.layoutRow}>
           {LAYOUT_MODES.map(({ key, label }) => (
@@ -249,6 +267,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 2,
+  },
+  connectionInfoToggle: {
+    marginTop: 6,
+  },
+  connectionInfoToggleText: {
+    fontSize: 11,
+    color: COLORS.primary,
+  },
+  connectionInfoBox: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceLight,
+  },
+  connectionInfoLabel: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontFamily: Platform.OS === 'web' ? 'monospace' : undefined,
+  },
+  connectionInfoIce: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    fontFamily: Platform.OS === 'web' ? 'monospace' : undefined,
   },
   participantCount: {
     backgroundColor: COLORS.primary,

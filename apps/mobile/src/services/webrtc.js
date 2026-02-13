@@ -21,7 +21,7 @@ if (Platform.OS === 'web') {
   mediaDevices = webrtc.mediaDevices;
 }
 
-import { ICE_SERVERS } from '../utils/config';
+import { ICE_SERVERS, FORCE_TURN_RELAY } from '../utils/config';
 import { socketService } from './socket';
 
 class WebRTCService {
@@ -32,6 +32,40 @@ class WebRTCService {
     this.remoteStreams = new Map(); // socketId -> MediaStream
     this.onRemoteStreamCallback = null;
     this.onRemoteStreamRemovedCallback = null;
+    // 可由服务端下发的 ICE 覆盖（不设则用 config 默认）
+    this.iceServers = null;
+    this.forceRelay = null;
+  }
+
+  /** 使用服务端下发的 ICE 配置（加入房间前由 useWebRTC 拉取并调用） */
+  setIceServers(iceServers) {
+    this.iceServers = iceServers && iceServers.length ? iceServers : null;
+  }
+
+  setForceRelay(forceRelay) {
+    this.forceRelay = !!forceRelay;
+  }
+
+  /** 连接成功后打印实际使用的协议：host=直连, srflx=STUN, relay=TURN */
+  async _logConnectionProtocol(pc, remoteSocketId) {
+    try {
+      const stats = await pc.getStats();
+      let localType = '';
+      let remoteType = '';
+      for (const report of stats.values()) {
+        if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) {
+          const local = stats.get(report.localCandidateId);
+          const remote = stats.get(report.remoteCandidateId);
+          if (local) localType = local.candidateType || local.type || '';
+          if (remote) remoteType = remote.candidateType || remote.type || '';
+          break;
+        }
+      }
+      const protocol = localType === 'relay' || remoteType === 'relay' ? 'TURN 中继' : localType === 'srflx' || remoteType === 'srflx' ? 'STUN 公网直连' : '本地/直连';
+      console.log(`[WebRTC] 与 ${remoteSocketId} 连接使用: ${protocol} (本地: ${localType || '?'}, 远端: ${remoteType || '?'})`);
+    } catch (e) {
+      console.warn('[WebRTC] 无法读取连接协议:', e?.message);
+    }
   }
 
   // Initialize local media stream
@@ -137,9 +171,14 @@ class WebRTCService {
     }
   }
 
-  // Create peer connection for a remote user
+  // Create peer connection for a remote user（优先用服务端下发的 iceServers/forceRelay）
   createPeerConnection(remoteSocketId) {
-    const config = { iceServers: ICE_SERVERS };
+    const iceServers = this.iceServers ?? ICE_SERVERS;
+    const forceRelay = this.forceRelay ?? FORCE_TURN_RELAY;
+    const config = {
+      iceServers,
+      ...(forceRelay && { iceTransportPolicy: 'relay' }),
+    };
     const pc = new RTCPeerConnection(config);
 
     // Add local tracks
@@ -159,6 +198,9 @@ class WebRTCService {
     // Handle connection state changes
     pc.onconnectionstatechange = () => {
       console.log(`Connection state with ${remoteSocketId}: ${pc.connectionState}`);
+      if (pc.connectionState === 'connected') {
+        this._logConnectionProtocol(pc, remoteSocketId);
+      }
       if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
         this.closePeerConnection(remoteSocketId);
       }

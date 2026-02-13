@@ -102,6 +102,28 @@ cd apps/mobile
 npx expo start
 ```
 
+## 部署（Docker：信令 + 前端 + TURN）
+
+一键跑起应用和 3478 端口的 TURN 服务，环境变量通过 `.env` 注入。
+
+1. **复制环境变量并修改**
+   ```bash
+   cp .env.example .env
+   # 编辑 .env：EXPO_PUBLIC_API_URL / EXPO_PUBLIC_SOCKET_URL 改为你的域名或 IP
+   # 若启用 TURN：填 TURN_URL（客户端可访问的地址）、TURN_USERNAME、TURN_CREDENTIAL、EXTERNAL_IP（与 TURN_URL 的 host 一致）
+   ```
+
+2. **构建并启动**
+   ```bash
+   docker compose up -d
+   ```
+   - 应用：`PORT` 映射（默认 3001）
+   - TURN：3478（TCP/UDP）及 49152-49200/udp
+
+3. **说明**
+   - 前端 API/Socket 地址在**构建时**由 `EXPO_PUBLIC_*` 决定；服务端 PORT、TURN_* 在**运行时**由 `.env` 注入。
+   - 部署到公网时务必设置 `EXTERNAL_IP` 和 `TURN_URL`（同一 host），否则 TURN 分配地址错误。
+
 ## Usage
 
 1. Open the app in your browser (press `w` in Expo CLI)
@@ -117,6 +139,50 @@ npx expo start
 3. Join with the room code in the other window
 4. Verify video/audio connection works
 5. Test chat functionality
+
+### TURN 与 ICE 配置（服务端下发）
+
+**TURN 地址由服务端统一下发，前端不写死。** 加入房间前会请求 `GET /api/ice-servers`，用返回的 `iceServers`（含 STUN/TURN）建连；拉取失败时再用前端默认（仅 STUN）。
+
+- **配置位置**：在 **服务端** `server/.env` 里配置（见 `server/.env.example`）：
+  - `TURN_URL`、`TURN_USERNAME`、`TURN_CREDENTIAL`：TURN 服务
+  - `FORCE_TURN=true`：仅测试时强制只走 TURN
+- 前端 `apps/mobile/.env` 里的 `EXPO_PUBLIC_TURN_*` / `EXPO_PUBLIC_FORCE_TURN` 仅作**兜底**（例如接口失败时）。
+
+### TURN 本地测试（强制走 TURN 验证）
+
+**1. 启动本地 TURN（coturn）**
+
+```bash
+# 项目根目录
+docker compose -f docker-compose.turn.yml up -d
+```
+
+本机测保持 `turn/coturn.conf` 里 `external-ip=127.0.0.1`；另一台设备测时改为本机局域网 IP（如 `192.168.1.100`），重启容器。
+
+**2. 服务端配置 TURN（下发用）**
+
+在 `server/.env` 里增加（与 coturn 的 user 一致）。**其他设备要连你的 TURN 时，`TURN_URL` 必须写本机局域网 IP**（如 `turn:192.168.1.100:3478`），否则前端拿到的 TURN 地址连不上。
+
+```bash
+# 本机测：127.0.0.1；其他设备测：改成你电脑的局域网 IP
+TURN_URL=turn:192.168.1.100:3478
+TURN_USERNAME=test
+TURN_CREDENTIAL=test123
+FORCE_TURN=true
+```
+
+**3. 重启服务端与前端**
+
+```bash
+# 终端 1
+cd server && npm run dev
+
+# 终端 2
+cd apps/mobile && npx expo start
+```
+
+开两个窗口进同一房间能通即说明 TURN 由服务端下发并生效；之后可去掉 `FORCE_TURN` 正常用「先直连，失败再走 TURN」。
 
 ## Notes
 

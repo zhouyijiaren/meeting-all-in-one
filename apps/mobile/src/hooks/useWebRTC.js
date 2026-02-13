@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { webRTCService } from '../services/webrtc';
 import { socketService } from '../services/socket';
+import { apiService } from '../services/api';
+import { API_URL, SOCKET_URL, ICE_SERVERS as DEFAULT_ICE_SERVERS } from '../utils/config';
 
 export function useWebRTC(roomId, userId, userName) {
   const [localStream, setLocalStream] = useState(null);
@@ -10,10 +12,17 @@ export function useWebRTC(roomId, userId, userName) {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  /** 当前连接配置，用于界面显示（不依赖 console） */
+  const [connectionInfo, setConnectionInfo] = useState(null);
 
   // Initialize connection
   const connect = useCallback(async () => {
     try {
+      // 先记下 API/Socket 地址，供界面和 console 显示
+      const info = { apiUrl: API_URL, socketUrl: SOCKET_URL, iceLines: [] };
+      setConnectionInfo(info);
+      console.log('[连接地址] API:', API_URL, '| Socket:', SOCKET_URL);
+
       // Connect socket
       socketService.connect();
 
@@ -82,6 +91,38 @@ export function useWebRTC(roomId, userId, userName) {
         );
       });
 
+      // 使用服务端下发的 ICE（含 TURN），不写死在前端
+      const iceConfig = await apiService.getIceServers();
+      const iceLines = [];
+      if (iceConfig?.iceServers?.length) {
+        webRTCService.setIceServers(iceConfig.iceServers);
+        webRTCService.setForceRelay(iceConfig.forceRelay);
+        const hasTurn = iceConfig.iceServers.some(s => String(s.urls || '').startsWith('turn:'));
+        console.log('[WebRTC] ICE 配置: 服务端下发,', iceConfig.iceServers.length, '个服务器,', hasTurn ? '含 TURN' : '仅 STUN', iceConfig.forceRelay ? ', 强制走 TURN' : '');
+        iceConfig.iceServers.forEach((s, i) => {
+          const urls = Array.isArray(s.urls) ? s.urls : [s.urls].filter(Boolean);
+          urls.forEach(u => {
+            const type = String(u).startsWith('turn:') ? 'TURN' : 'STUN';
+            const auth = s.username ? ` (user=${s.username})` : '';
+            const line = `${type} ${u}${auth}`;
+            iceLines.push(line);
+            console.log(`  [ICE ${i + 1}] ${line}`);
+          });
+        });
+        setConnectionInfo(prev => (prev ? { ...prev, iceLines } : { apiUrl: API_URL, socketUrl: SOCKET_URL, iceLines }));
+      } else {
+        console.log('[WebRTC] ICE 配置: 使用前端默认(仅 STUN)');
+        DEFAULT_ICE_SERVERS.forEach((s, i) => {
+          const urls = Array.isArray(s.urls) ? s.urls : [s.urls].filter(Boolean);
+          urls.forEach(u => {
+            const type = String(u).startsWith('turn:') ? 'TURN' : 'STUN';
+            iceLines.push(`${type} ${u}`);
+            console.log(`  [ICE ${i + 1}] ${type} ${u}`);
+          });
+        });
+      }
+      setConnectionInfo(prev => (prev ? { ...prev, iceLines } : { apiUrl: API_URL, socketUrl: SOCKET_URL, iceLines }));
+
       // Join the room
       socketService.joinRoom(roomId, userId, userName);
       setIsConnected(true);
@@ -148,6 +189,7 @@ export function useWebRTC(roomId, userId, userName) {
     isVideoEnabled,
     isScreenSharing,
     isConnected,
+    connectionInfo,
     connect,
     disconnect,
     toggleAudio,

@@ -1,0 +1,30 @@
+# 单服务部署：信令 + 前端静态 + TURN 同一镜像/容器
+# 使用：cp .env.example .env 后 docker compose up -d
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-http://localhost:3001}
+        EXPO_PUBLIC_SOCKET_URL: ${EXPO_PUBLIC_SOCKET_URL:-http://localhost:3001}
+        EXPO_PUBLIC_SUPABASE_URL: ${EXPO_PUBLIC_SUPABASE_URL:-}
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: ${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}
+    container_name: meeting-app
+    env_file: .env
+    environment:
+      PORT: ${PORT:-3001}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      TURN_URL: ${TURN_URL:-}
+      TURN_USERNAME: ${TURN_USERNAME:-}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
+      FORCE_TURN: ${FORCE_TURN:-}
+      EXTERNAL_IP: ${EXTERNAL_IP:-}
+    ports:
+      - "${PORT:-3001}:3001"
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "49152-49200:49152-49200/udp"
+    restart: unless-stopped
