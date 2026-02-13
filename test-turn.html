@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>TURN 连通性测试</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #1a1a2e; color: #eee; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 4px; }
+    pre { background: #222; padding: 12px; overflow: auto; font-size: 12px; }
+    .ok { color: #10b981; } .err { color: #ef4444; } .warn { color: #f59e0b; }
+  </style>
+</head>
+<body>
+  <h2>TURN 测试 <span id="target">(localhost:3478)</span></h2>
+  <button id="btnUdp">测试 UDP</button>
+  <button id="btnTcp">测试 TCP</button>
+  <button id="btnBoth">同时测 UDP+TCP</button>
+  <pre id="log"></pre>
+  <script>
+    const log = (msg, ok) => {
+      const el = document.getElementById('log');
+      el.innerHTML += `<span class="${ok === true ? 'ok' : ok === false ? 'err' : ok === 'warn' ? 'warn' : ''}">${msg}</span>\n`;
+    };
+    const TURN_HOST = '127.0.0.1';
+    const TURN_PORT = '3478';
+    const runTest = (label, urls) => {
+      document.getElementById('log').innerHTML = '';
+      log(`${label}`, 'warn');
+      const urlsArr = Array.isArray(urls) ? urls : [urls];
+      const config = { iceServers: [{ urls: urlsArr, username: 'test', credential: 'test123' }] };
+      log('创建 RTCPeerConnection...');
+      try {
+        const pc = new RTCPeerConnection(config);
+        let hasRelay = false;
+        pc.onicecandidate = (e) => {
+          if (!e.candidate) return;
+          const c = e.candidate;
+          log(`ICE: ${c.type} ${c.address || ''}:${c.port || ''} (${c.protocol})`);
+          if (c.type === 'relay') { hasRelay = true; log('✓ TURN relay 成功！', true); }
+        };
+        pc.onicegatheringstatechange = () => {
+          log(`ICE gathering: ${pc.iceGatheringState}`);
+          if (pc.iceGatheringState === 'complete') {
+            log('--- 测试完成 ---');
+            if (!hasRelay) {
+              log('未发现 relay 候选。可能原因：', false);
+              log('1. Zeabur 需配置 EXTERNAL_IP（实例公网 IP）', false);
+              log('2. 平台可能只转发 TCP，UDP 不通', false);
+              log('3. 中继端口 49152-49200 未暴露', false);
+            }
+          }
+        };
+        pc.createDataChannel('test');
+        pc.createOffer().then(o => pc.setLocalDescription(o));
+        log('等待 ICE 候选...');
+      } catch (e) {
+        log('错误: ' + e.message, false);
+      }
+    };
+    document.getElementById('btnUdp').onclick = () => runTest('--- UDP ---', `turn:${TURN_HOST}:${TURN_PORT}`);
+    document.getElementById('btnTcp').onclick = () => runTest('--- TCP ---', `turn:${TURN_HOST}:${TURN_PORT}?transport=tcp`);
+    document.getElementById('btnBoth').onclick = () => runTest('--- UDP + TCP ---', [`turn:${TURN_HOST}:${TURN_PORT}`, `turn:${TURN_HOST}:${TURN_PORT}?transport=tcp`]);
+  </script>
+</body>
+</html>

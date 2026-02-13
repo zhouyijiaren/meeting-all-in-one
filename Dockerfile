@@ -40,9 +40,9 @@ COPY turn/coturn.conf /etc/coturn/turnserver.conf
 COPY scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# ICE 由服务端下发，需在此配置 TURN；部署时用 -e 或平台环境变量覆盖 TURN_URL
-# 格式: turn:域名或IP:3478，如 turn:socket-io.zeabur.app:3478
-ENV TURN_URL=socket-io-turn.zeabur.app
+# ICE 由服务端下发；Zeabur 转发端口，TCP 可用时同时下发 UDP+TCP
+# 部署时用 -e 覆盖，如 TURN_URL=sjc1.clusters.zeabur.com:27984
+ENV TURN_URL=sjc1.clusters.zeabur.com:27984
 ENV TURN_USERNAME=test
 ENV TURN_CREDENTIAL=test123
 

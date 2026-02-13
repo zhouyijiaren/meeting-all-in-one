@@ -78,17 +78,34 @@ app.get('/health', (req, res) => {
 });
 
 // ICE 配置（含 TURN）由服务端下发，前端不写死
+// TURN URL: turn:host:port；若只填 host 则补 3478；同时下发 TCP 以兼容只转发 TCP 的平台
+function normalizeTurnUrl(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  const s = raw.trim();
+  if (!s) return null;
+  if (/^turn(s)?:/i.test(s)) return s; // 已带 turn: 或 turns:
+  const part = s.replace(/^https?:\/\//, '').split('/')[0];
+  const [host, port] = part.includes(':') ? part.split(':') : [part, '3478'];
+  return host ? `turn:${host}:${port || 3478}` : null;
+}
+
 app.get('/api/ice-servers', (req, res) => {
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
   ];
-  const turnUrl = process.env.TURN_URL;
+  const rawTurn = process.env.TURN_URL;
   const turnUser = process.env.TURN_USERNAME;
   const turnCred = process.env.TURN_CREDENTIAL;
+  const turnUrl = normalizeTurnUrl(rawTurn);
   if (turnUrl && turnUser && turnCred) {
-    iceServers.push({ urls: turnUrl, username: turnUser, credential: turnCred });
+    // 同时下发 UDP 和 TCP，Zeabur 等平台可能只转发 TCP
+    iceServers.push({
+      urls: [turnUrl, turnUrl + '?transport=tcp'],
+      username: turnUser,
+      credential: turnCred,
+    });
   }
   const forceRelay = process.env.FORCE_TURN === 'true' && iceServers.some(s => s.urls && String(s.urls).startsWith('turn:'));
   res.json({ iceServers, forceRelay: !!forceRelay });
