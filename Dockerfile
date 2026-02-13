@@ -12,9 +12,6 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 ENV EXPO_PUBLIC_SOCKET_URL=$EXPO_PUBLIC_SOCKET_URL
 ENV EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
 ENV EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
-ENV TURN_URL=socket-io-turn.zeabur.app
-ENV TURN_USERNAME=test
-ENV TURN_CREDENTIAL=test123
 
 COPY apps/mobile/package.json apps/mobile/package-lock.json ./
 RUN npm ci
@@ -42,6 +39,12 @@ COPY --from=frontend /app/mobile/dist-web ./public
 COPY turn/coturn.conf /etc/coturn/turnserver.conf
 COPY scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+
+# ICE 由服务端下发，需在此配置 TURN；部署时用 -e 或平台环境变量覆盖 TURN_URL
+# 格式: turn:域名或IP:3478，如 turn:socket-io.zeabur.app:3478
+ENV TURN_URL=socket-io-turn.zeabur.app
+ENV TURN_USERNAME=test
+ENV TURN_CREDENTIAL=test123
 
 # 运行时环境变量：PORT, SUPABASE_*, TURN_*, FORCE_TURN, EXTERNAL_IP
 EXPOSE 3001 3478
