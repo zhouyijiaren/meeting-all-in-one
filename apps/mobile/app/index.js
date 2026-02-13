@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,18 @@ import { router } from 'expo-router';
 import { COLORS } from '../src/utils/config';
 import { generateId, untitledName } from '../src/utils/helpers';
 import { apiService } from '../src/services/api';
+import { prefetchRoomChunk } from '../src/utils/prefetchRoom';
 
 export default function HomeScreen() {
   const [userName, setUserName] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const prefetched = useRef(false);
+  const onMaybeEnterRoom = () => {
+    if (Platform.OS !== 'web' || prefetched.current) return;
+    prefetched.current = true;
+    prefetchRoomChunk();
+  };
 
   const showAlert = (title, message) => {
     if (Platform.OS === 'web') {
@@ -104,6 +111,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.button, styles.primaryButton]}
             onPress={handleCreateRoom}
+            onPressIn={onMaybeEnterRoom}
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>
@@ -130,6 +138,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.button, styles.secondaryButton]}
             onPress={handleJoinRoom}
+            onPressIn={onMaybeEnterRoom}
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>加入会议</Text>

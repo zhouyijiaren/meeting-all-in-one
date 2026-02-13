@@ -124,6 +124,15 @@ npx expo start
    - 前端 API/Socket 地址在**构建时**由 `EXPO_PUBLIC_*` 决定；服务端 PORT、TURN_* 在**运行时**由 `.env` 注入。
    - 部署到公网时务必设置 `EXTERNAL_IP` 和 `TURN_URL`（同一 host），否则 TURN 分配地址错误。
 
+### Web 打开 404 排查
+
+- **本地直接起 Node 服务**：先在前端目录打 Vite 包，再起服务，服务端会自动用 `apps/mobile/dist-web` 当静态目录（若 `server/public` 里没有 `index.html`）。
+  ```bash
+  cd apps/mobile && npm run build:web:vite
+  cd ../../server && npm start
+  ```
+- **Docker**：镜像里已用 Vite 构建并把 `dist-web` 拷到 `server/public`，一般不会 404；若仍 404，检查构建阶段是否报错、或平台是否把应用挂在子路径（子路径需在 Vite 里配 `base`）。
+
 ## Usage
 
 1. Open the app in your browser (press `w` in Expo CLI)

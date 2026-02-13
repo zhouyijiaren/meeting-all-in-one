@@ -12,12 +12,16 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 ENV EXPO_PUBLIC_SOCKET_URL=$EXPO_PUBLIC_SOCKET_URL
 ENV EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
 ENV EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
+ENV TURN_URL=socket-io-turn.zeabur.app
+ENV TURN_USERNAME=test
+ENV TURN_CREDENTIAL=test123
 
 COPY apps/mobile/package.json apps/mobile/package-lock.json ./
 RUN npm ci
 
 COPY apps/mobile/ .
-RUN npx expo export --platform web
+# Web 使用 Vite 构建（vendor 拆包：react / react-native-web / 业务 分离）
+RUN npm run build:web:vite
 
 # ========== Stage 2: Backend + 前端静态 + TURN（单镜像单容器）==========
 FROM node:20-alpine
@@ -31,7 +35,8 @@ COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY server/ .
-COPY --from=frontend /app/mobile/dist ./public
+# Vite 产物在 dist-web（含 index.html + assets/*.js 多 chunk）
+COPY --from=frontend /app/mobile/dist-web ./public
 
 # TURN 配置与入口脚本（同容器内跑 Node + turnserver）
 COPY turn/coturn.conf /etc/coturn/turnserver.conf

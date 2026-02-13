@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { COLORS } from '../../src/utils/config';
 import { generateId, untitledName } from '../../src/utils/helpers';
 import { apiService } from '../../src/services/api';
+import { prefetchRoomChunk } from '../../src/utils/prefetchRoom';
 
 export default function ShortJoinScreen() {
   const { shortCode } = useLocalSearchParams();
@@ -19,6 +20,12 @@ export default function ShortJoinScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [name, setName] = useState('');
+  const prefetched = useRef(false);
+  const onMaybeEnterRoom = () => {
+    if (Platform.OS !== 'web' || prefetched.current) return;
+    prefetched.current = true;
+    prefetchRoomChunk();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +92,11 @@ export default function ShortJoinScreen() {
           placeholderTextColor={COLORS.textSecondary}
           autoCapitalize="words"
         />
-        <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleJoin}>
+        <TouchableOpacity
+          style={[styles.button, styles.primaryButton]}
+          onPress={handleJoin}
+          onPressIn={onMaybeEnterRoom}
+        >
           <Text style={styles.buttonText}>进入会议</Text>
         </TouchableOpacity>
       </View>

@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import cors from 'cors';
+import compression from 'compression';
 import { setupSocketHandlers, getRoomInfo } from './socket.js';
 import { createRoom, getRoom } from './supabase.js';
 
@@ -47,11 +48,28 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json());
+// 生产环境启用 gzip，大幅减少 JS/CSS 等静态资源传输体积（约 70%）
+if (process.env.NODE_ENV === 'production') {
+  app.use(compression());
+}
 
-// Static frontend (when deployed with Docker; public/ may not exist in local dev)
+// Static frontend：优先 server/public（Docker 会拷入 dist-web），若无则回退到 apps/mobile/dist-web（本地先 build:web:vite）
 const publicDir = path.join(__dirname, '..', 'public');
-if (existsSync(publicDir)) {
-  app.use(express.static(publicDir));
+const fallbackWebDir = path.join(__dirname, '..', '..', 'apps', 'mobile', 'dist-web');
+const hasPublic = existsSync(publicDir) && existsSync(path.join(publicDir, 'index.html'));
+const staticDir = hasPublic ? publicDir : (existsSync(fallbackWebDir) && existsSync(path.join(fallbackWebDir, 'index.html')) ? fallbackWebDir : publicDir);
+const isProduction = process.env.NODE_ENV === 'production';
+if (existsSync(staticDir)) {
+  app.use(
+    express.static(staticDir, {
+      maxAge: isProduction ? '1y' : 0,
+      etag: true,
+      lastModified: true,
+    })
+  );
+  if (!hasPublic && staticDir === fallbackWebDir) {
+    console.log('Serving web from apps/mobile/dist-web (no server/public/index.html)');
+  }
 }
 
 // Health check
@@ -122,11 +140,13 @@ app.get('/api/rooms/:roomId', async (req, res) => {
 // Setup Socket.io handlers
 setupSocketHandlers(io);
 
-// SPA fallback: serve index.html for non-API routes (only when public exists)
-if (existsSync(publicDir)) {
+// SPA fallback: index.html 不长期缓存，便于发版后及时拿到新资源
+const indexPath = path.join(staticDir, 'index.html');
+if (existsSync(staticDir) && existsSync(indexPath)) {
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/socket')) return next();
-    res.sendFile(path.join(publicDir, 'index.html'), (err) => {
+    res.setHeader('Cache-Control', 'no-cache, max-age=0');
+    res.sendFile(indexPath, (err) => {
       if (err) next();
     });
   });

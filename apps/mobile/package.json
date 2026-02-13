@@ -6,7 +6,10 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "export:web": "expo export --platform web --clear && node scripts/inject-preload.js",
+    "build:web:vite": "vite build && node -e \"const fs=require('fs'); const p='dist-web/index-vite.html'; if(fs.existsSync(p)){ fs.renameSync(p,'dist-web/index.html'); }\"",
+    "preview:web:vite": "vite build --mode development && node -e \"const fs=require('fs'); const p='dist-web/index-vite.html'; if(fs.existsSync(p)){ fs.renameSync(p,'dist-web/index.html'); }\" && vite preview --outDir dist-web"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -29,7 +32,12 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@types/react": "~18.3.12"
+    "@types/react": "~18.3.12",
+    "@vitejs/plugin-react": "^5.1.4",
+    "expo-atlas": "^0.4.3",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.3",
+    "vite": "^7.3.1"
   },
   "private": true
 }

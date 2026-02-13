@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Meeting</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #1a1a2e; }
+      #root { display: flex; height: 100%; flex: 1; min-height: 100vh; }
+      /* 让 BrowserRouter 的根 div 占满高度并成为 flex 容器，否则内部 flex:1 无法撑开 */
+      #root > * { flex: 1; min-height: 100%; display: flex; flex-direction: column; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/web/main.jsx"></script>
+  </body>
+</html>
