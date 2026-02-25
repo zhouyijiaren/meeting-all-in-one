@@ -135,6 +135,14 @@ export function useWebRTC(roomId, userId, userName) {
   // Disconnect
   const disconnect = useCallback(() => {
     socketService.leaveRoom();
+    // Remove all socket event listeners registered in connect()
+    socketService.off('room-participants');
+    socketService.off('user-joined');
+    socketService.off('user-left');
+    socketService.off('offer');
+    socketService.off('answer');
+    socketService.off('ice-candidate');
+    socketService.off('user-media-status');
     socketService.disconnect();
     webRTCService.cleanup();
     setLocalStream(null);
