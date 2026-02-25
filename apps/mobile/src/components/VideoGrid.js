@@ -30,11 +30,11 @@ export function VideoGrid({
       name: 'You',
       isLocal: true,
     };
-    const remotes = Array.from(remoteStreams.entries()).map(([socketId, stream]) => {
-      const p = participants.find((x) => x.socketId === socketId);
+    const remotes = participants.map((p, index) => {
+      const socketId = p?.socketId || `participant-${index}`;
       return {
         socketId,
-        stream,
+        stream: p?.socketId ? remoteStreams.get(p.socketId) || null : null,
         name: p?.name || 'User',
         isLocal: false,
       };
