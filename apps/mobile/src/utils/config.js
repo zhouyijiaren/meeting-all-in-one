@@ -20,6 +20,15 @@ const turnFromEnv =
       ]
     : [];
 
+const parseOptionalBoolean = (raw) => {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim().toLowerCase();
+  if (!value) return null;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return null;
+};
+
 export const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
@@ -27,9 +36,11 @@ export const ICE_SERVERS = [
   ...turnFromEnv,
 ];
 
-// 设为 true 时强制只走 TURN（用于本地验证 TURN 是否可用，需同时配置 TURN）
+// 默认策略：只要配置了 TURN，就强制只走 relay（跨子网更稳定）
+// 可显式设 EXPO_PUBLIC_FORCE_TURN=false 来关闭，恢复“直连优先，失败再 TURN”
+const forceTurnOverride = parseOptionalBoolean(process.env.EXPO_PUBLIC_FORCE_TURN);
 export const FORCE_TURN_RELAY =
-  process.env.EXPO_PUBLIC_FORCE_TURN === 'true' && turnFromEnv.length > 0;
+  turnFromEnv.length > 0 && (forceTurnOverride ?? true);
 
 // App Theme Colors
 export const COLORS = {
