@@ -36,12 +36,12 @@ function pathFromRoute(pathname, params) {
 }
 
 export const router = {
-  push({ pathname, params }) {
-    const to = pathFromRoute(pathname, params);
+  push(arg) {
+    const to = typeof arg === 'string' ? arg : pathFromRoute(arg.pathname, arg.params);
     if (navigateRef.current) navigateRef.current(to);
   },
-  replace({ pathname, params }) {
-    const to = pathFromRoute(pathname, params);
+  replace(arg) {
+    const to = typeof arg === 'string' ? arg : pathFromRoute(arg.pathname, arg.params);
     if (navigateRef.current) navigateRef.current(to, { replace: true });
   },
 };
