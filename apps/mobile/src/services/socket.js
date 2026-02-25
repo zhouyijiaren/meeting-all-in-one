@@ -1,17 +1,25 @@
 import { io } from 'socket.io-client';
 import { SOCKET_URL } from '../utils/config';
 
+function writeAgentClientLog(hypothesisId, location, message, data = {}) {
+  try {
+    console.info('[AGENT_DEBUG]', JSON.stringify({ hypothesisId, location, message, data, timestamp: Date.now() }));
+  } catch {}
+}
+
 class SocketService {
   constructor() {
     this.socket = null;
     this.listeners = new Map();
+    this.currentRoom = null;
   }
 
   connect() {
     if (this.socket?.connected) return this.socket;
 
     this.socket = io(SOCKET_URL, {
-      transports: ['websocket'],
+      // Prefer WebSocket, but allow polling fallback behind strict proxies.
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -19,8 +27,17 @@ class SocketService {
 
     this.socket.on('connect', () => {
       console.log('Socket connected:', this.socket.id);
+      // #region agent log
+      writeAgentClientLog('H3', 'apps/mobile/src/services/socket.js:connect', 'socket connected', {
+        socketId: this.socket?.id || null,
+      });
+      // #endregion
       // 连接建立后补绑「先注册、后连接」的监听器
       this._attachPendingListeners();
+      // 网络抖动重连后需要重新入房，否则服务端不会继续转发信令
+      if (this.currentRoom) {
+        this.socket.emit('join-room', this.currentRoom);
+      }
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -50,6 +67,7 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
     }
+    this.currentRoom = null;
   }
 
   getSocket() {
@@ -62,15 +80,40 @@ class SocketService {
 
   // Room management
   joinRoom(roomId, userId, userName) {
-    this.socket?.emit('join-room', { roomId, userId, userName });
+    this.currentRoom = { roomId, userId, userName };
+    // #region agent log
+    writeAgentClientLog('H1', 'apps/mobile/src/services/socket.js:joinRoom', 'join-room emit attempt', {
+      roomId,
+      roomIdType: typeof roomId,
+      userIdPresent: Boolean(userId),
+      userNamePresent: Boolean(userName),
+      connected: Boolean(this.socket?.connected),
+      socketId: this.socket?.id || null,
+    });
+    // #endregion
+    if (this.socket?.connected) {
+      this.socket.emit('join-room', this.currentRoom);
+    }
   }
 
   leaveRoom() {
-    this.socket?.emit('leave-room');
+    if (this.socket?.connected) {
+      this.socket.emit('leave-room');
+    }
+    this.currentRoom = null;
   }
 
   // WebRTC Signaling
   sendOffer(to, offer) {
+    // #region agent log
+    writeAgentClientLog('H4', 'apps/mobile/src/services/socket.js:sendOffer', 'sending offer', {
+      to,
+      socketId: this.socket?.id || null,
+      connected: Boolean(this.socket?.connected),
+      hasSdp: Boolean(offer?.sdp),
+      sdpType: offer?.type || null,
+    });
+    // #endregion
     this.socket?.emit('offer', { to, offer });
   }
 
@@ -113,7 +156,11 @@ class SocketService {
 
   off(event, callback) {
     if (this.socket) {
-      this.socket.off(event, callback);
+      if (callback) {
+        this.socket.off(event, callback);
+      } else {
+        this.socket.off(event);
+      }
     }
     if (callback) {
       const list = this.listeners.get(event);

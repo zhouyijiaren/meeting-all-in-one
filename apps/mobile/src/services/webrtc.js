@@ -24,6 +24,12 @@ if (Platform.OS === 'web') {
 import { ICE_SERVERS, FORCE_TURN_RELAY } from '../utils/config';
 import { socketService } from './socket';
 
+function writeAgentClientLog(hypothesisId, location, message, data = {}) {
+  try {
+    console.info('[AGENT_DEBUG]', JSON.stringify({ hypothesisId, location, message, data, timestamp: Date.now() }));
+  } catch {}
+}
+
 class WebRTCService {
   constructor() {
     this.localStream = null;
@@ -175,6 +181,13 @@ class WebRTCService {
   createPeerConnection(remoteSocketId) {
     const iceServers = this.iceServers ?? ICE_SERVERS;
     const forceRelay = this.forceRelay ?? FORCE_TURN_RELAY;
+    // #region agent log
+    writeAgentClientLog('H5', 'apps/mobile/src/services/webrtc.js:createPeerConnection', 'creating peer connection', {
+      remoteSocketId,
+      iceServersCount: iceServers?.length || 0,
+      forceRelay: Boolean(forceRelay),
+    });
+    // #endregion
     const config = {
       iceServers,
       ...(forceRelay && { iceTransportPolicy: 'relay' }),
@@ -209,6 +222,14 @@ class WebRTCService {
     // Handle remote stream
     pc.ontrack = (event) => {
       const [remoteStream] = event.streams;
+      // #region agent log
+      writeAgentClientLog('H5', 'apps/mobile/src/services/webrtc.js:ontrack', 'ontrack fired', {
+        remoteSocketId,
+        streamExists: Boolean(remoteStream),
+        streamId: remoteStream?.id || null,
+        tracks: (remoteStream?.getTracks?.() || []).map((t) => t.kind),
+      });
+      // #endregion
       if (remoteStream) {
         this.remoteStreams.set(remoteSocketId, remoteStream);
         this.onRemoteStreamCallback?.(remoteSocketId, remoteStream);

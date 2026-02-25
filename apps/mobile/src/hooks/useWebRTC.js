@@ -4,6 +4,12 @@ import { socketService } from '../services/socket';
 import { apiService } from '../services/api';
 import { API_URL, SOCKET_URL, ICE_SERVERS as DEFAULT_ICE_SERVERS } from '../utils/config';
 
+function writeAgentClientLog(hypothesisId, location, message, data = {}) {
+  try {
+    console.info('[AGENT_DEBUG]', JSON.stringify({ hypothesisId, location, message, data, timestamp: Date.now() }));
+  } catch {}
+}
+
 export function useWebRTC(roomId, userId, userName) {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState(new Map());
@@ -51,7 +57,26 @@ export function useWebRTC(roomId, userId, userName) {
       });
 
       // Socket event handlers
+      socketService.on('connect', () => {
+        setIsConnected(true);
+      });
+
+      socketService.on('disconnect', () => {
+        // Server restart / network flap can leave stale peer state.
+        webRTCService.closeAllConnections();
+        setRemoteStreams(new Map());
+        setParticipants([]);
+        setIsConnected(false);
+      });
+
       socketService.on('room-participants', async (existingParticipants) => {
+        // #region agent log
+        writeAgentClientLog('H1', 'apps/mobile/src/hooks/useWebRTC.js:room-participants', 'room-participants received', {
+          roomId,
+          count: existingParticipants?.length || 0,
+          participantSocketIds: (existingParticipants || []).map((p) => p.socketId),
+        });
+        // #endregion
         setParticipants(existingParticipants);
 
         // Create offers to all existing participants
@@ -61,6 +86,13 @@ export function useWebRTC(roomId, userId, userName) {
       });
 
       socketService.on('user-joined', (user) => {
+        // #region agent log
+        writeAgentClientLog('H3', 'apps/mobile/src/hooks/useWebRTC.js:user-joined', 'user-joined received', {
+          roomId,
+          socketId: user?.socketId || null,
+          userId: user?.id || null,
+        });
+        // #endregion
         setParticipants(prev => [...prev, user]);
       });
 
@@ -70,6 +102,13 @@ export function useWebRTC(roomId, userId, userName) {
       });
 
       socketService.on('offer', async ({ from, offer }) => {
+        // #region agent log
+        writeAgentClientLog('H4', 'apps/mobile/src/hooks/useWebRTC.js:offer', 'offer received', {
+          from,
+          hasSdp: Boolean(offer?.sdp),
+          sdpType: offer?.type || null,
+        });
+        // #endregion
         await webRTCService.handleOffer(from, offer);
       });
 
@@ -125,7 +164,6 @@ export function useWebRTC(roomId, userId, userName) {
 
       // Join the room
       socketService.joinRoom(roomId, userId, userName);
-      setIsConnected(true);
     } catch (error) {
       console.error('Error connecting:', error);
       throw error;
@@ -137,6 +175,8 @@ export function useWebRTC(roomId, userId, userName) {
     socketService.leaveRoom();
     // Remove all socket event listeners registered in connect()
     socketService.off('room-participants');
+    socketService.off('connect');
+    socketService.off('disconnect');
     socketService.off('user-joined');
     socketService.off('user-left');
     socketService.off('offer');
