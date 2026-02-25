@@ -48,6 +48,8 @@ export function setupSocketHandlers(io) {
     socket.on('leave-room', () => {
       if (currentRoom && currentUser) {
         handleLeaveRoom(socket, currentRoom, currentUser);
+        currentRoom = null;
+        currentUser = null;
       }
     });
 

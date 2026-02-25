@@ -308,6 +308,8 @@ class WebRTCService {
     this.stopLocalStream();
     this.stopScreenShare();
     this.closeAllConnections();
+    this.onRemoteStreamCallback = null;
+    this.onRemoteStreamRemovedCallback = null;
   }
 }
 

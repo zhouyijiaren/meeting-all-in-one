@@ -114,12 +114,15 @@ class SocketService {
   off(event, callback) {
     if (this.socket) {
       this.socket.off(event, callback);
-    } else {
+    }
+    if (callback) {
       const list = this.listeners.get(event);
       if (list) {
         const i = list.indexOf(callback);
         if (i !== -1) list.splice(i, 1);
       }
+    } else {
+      this.listeners.delete(event);
     }
   }
 }
