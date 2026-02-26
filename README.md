@@ -168,6 +168,8 @@ docker compose -f docker-compose.turn.yml up -d
 ```
 
 本机测保持 `turn/coturn.conf` 里 `external-ip=127.0.0.1`；另一台设备测时改为本机局域网 IP（如 `192.168.1.100`），重启容器。
+若你是在**同一台机器双开浏览器**并且 `FORCE_TURN=true`，请保留 `allow-loopback-peers`，否则 coturn 可能报 `CREATE_PERMISSION 403 Forbidden IP` 导致“能进房但看不到对端视频”。
+同时 coturn 需设置非空 `cli-password`（示例配置已提供），否则会因 `allow_loopback_peers and empty cli password` 启动失败。
 
 **2. 服务端配置 TURN（下发用）**
 
