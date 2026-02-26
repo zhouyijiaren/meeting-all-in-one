@@ -23,9 +23,9 @@ const CHAT_WIDTH = 320;
 
 const LAYOUT_MODES = [
   { key: 'grid', label: '九宫格' },
-  { key: 'horizontal', label: '横向' },
-  { key: 'vertical', label: '纵向' },
-  { key: 'speaker', label: '左大右列' },
+  { key: 'horizontal', label: '左右' },
+  { key: 'vertical', label: '上下' },
+  { key: 'speaker', label: '左大右小' },
 ];
 
 export default function RoomContent({ roomId, userId, userName }) {
