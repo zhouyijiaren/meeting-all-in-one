@@ -1,17 +1,44 @@
 import { saveMessage, getRoomMessages } from './supabase.js';
+import fs from 'fs';
 
 // Store room participants: { roomId: { odIdparticipants: Map<socketId, userInfo> } }
 const rooms = new Map();
+const DEBUG_LOG_PATH = '/opt/cursor/logs/debug.log';
+
+function writeDebugLog(hypothesisId, location, message, data = {}) {
+  try {
+    fs.appendFileSync(
+      DEBUG_LOG_PATH,
+      JSON.stringify({ hypothesisId, location, message, data, timestamp: Date.now() }) + '\n'
+    );
+  } catch {}
+}
+
+function getCandidateType(candidate) {
+  const line = candidate?.candidate;
+  if (typeof line !== 'string') return null;
+  const match = line.match(/\btyp\s+([a-zA-Z0-9]+)/);
+  return match?.[1] || null;
+}
 
 export function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
+    // #region agent log
+    writeDebugLog('H3', 'server/src/socket.js:connection', 'socket connected', { socketId: socket.id });
+    // #endregion
 
     let currentRoom = null;
     let currentUser = null;
 
     // Join a room
     socket.on('join-room', async ({ roomId, userId, userName }) => {
+      // #region agent log
+      writeDebugLog('H1', 'server/src/socket.js:join-room:entry', 'join-room received', {
+        socketId: socket.id,
+        roomId,
+      });
+      // #endregion
       currentRoom = roomId;
       currentUser = { id: userId, name: userName, socketId: socket.id };
 
@@ -24,6 +51,13 @@ export function setupSocketHandlers(io) {
 
       // Notify existing participants about new user
       const existingParticipants = Array.from(roomParticipants.values());
+      // #region agent log
+      writeDebugLog('H1', 'server/src/socket.js:join-room:participants-before-add', 'existing participants', {
+        socketId: socket.id,
+        roomId,
+        count: existingParticipants.length,
+      });
+      // #endregion
 
       // Add new participant
       roomParticipants.set(socket.id, currentUser);
@@ -55,6 +89,13 @@ export function setupSocketHandlers(io) {
 
     // WebRTC Signaling: Offer
     socket.on('offer', ({ to, offer }) => {
+      // #region agent log
+      writeDebugLog('H4', 'server/src/socket.js:offer', 'forwarding offer', {
+        from: socket.id,
+        to,
+        hasSdp: Boolean(offer?.sdp),
+      });
+      // #endregion
       socket.to(to).emit('offer', {
         from: socket.id,
         offer,
@@ -64,6 +105,13 @@ export function setupSocketHandlers(io) {
 
     // WebRTC Signaling: Answer
     socket.on('answer', ({ to, answer }) => {
+      // #region agent log
+      writeDebugLog('H4', 'server/src/socket.js:answer', 'forwarding answer', {
+        from: socket.id,
+        to,
+        hasSdp: Boolean(answer?.sdp),
+      });
+      // #endregion
       socket.to(to).emit('answer', {
         from: socket.id,
         answer
@@ -72,6 +120,13 @@ export function setupSocketHandlers(io) {
 
     // WebRTC Signaling: ICE Candidate
     socket.on('ice-candidate', ({ to, candidate }) => {
+      // #region agent log
+      writeDebugLog('H4', 'server/src/socket.js:ice-candidate', 'forwarding ice-candidate', {
+        from: socket.id,
+        to,
+        candidateType: getCandidateType(candidate),
+      });
+      // #endregion
       socket.to(to).emit('ice-candidate', {
         from: socket.id,
         candidate

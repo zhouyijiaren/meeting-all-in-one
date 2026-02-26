@@ -3,6 +3,7 @@ import { webRTCService } from '../services/webrtc';
 import { socketService } from '../services/socket';
 import { apiService } from '../services/api';
 import { API_URL, SOCKET_URL, ICE_SERVERS as DEFAULT_ICE_SERVERS } from '../utils/config';
+import { writeAgentClientLog } from '../utils/agentLog';
 
 export function useWebRTC(roomId, userId, userName) {
   const [localStream, setLocalStream] = useState(null);

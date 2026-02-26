@@ -23,6 +23,7 @@ if (Platform.OS === 'web') {
 
 import { ICE_SERVERS, FORCE_TURN_RELAY } from '../utils/config';
 import { socketService } from './socket';
+import { writeAgentClientLog } from '../utils/agentLog';
 
 class WebRTCService {
   constructor() {
