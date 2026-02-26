@@ -90,25 +90,31 @@ function normalizeTurnUrl(raw) {
 }
 
 app.get('/api/ice-servers', (req, res) => {
-  const iceServers = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-  ];
   const rawTurn = process.env.TURN_URL;
   const turnUser = process.env.TURN_USERNAME;
   const turnCred = process.env.TURN_CREDENTIAL;
   const turnUrl = normalizeTurnUrl(rawTurn);
-  if (turnUrl && turnUser && turnCred) {
-    // 同时下发 UDP 和 TCP，Zeabur 等平台可能只转发 TCP
-    iceServers.push({
+  const hasTurn = !!(turnUrl && turnUser && turnCred);
+
+  // 仅 TURN 代理模式：未配置 TURN 视为错误，避免回落到 STUN/直连
+  if (!hasTurn) {
+    return res.status(500).json({
+      error: 'TURN is required in relay-only mode',
+      forceRelay: true,
+      iceServers: [],
+    });
+  }
+
+  // 同时下发 UDP 和 TCP，Zeabur 等平台可能只转发 TCP
+  const iceServers = [
+    {
       urls: [turnUrl, turnUrl + '?transport=tcp'],
       username: turnUser,
       credential: turnCred,
-    });
-  }
-  const forceRelay = process.env.FORCE_TURN === 'true' && iceServers.some(s => s.urls && String(s.urls).startsWith('turn:'));
-  res.json({ iceServers, forceRelay: !!forceRelay });
+    },
+  ];
+  // relay-only：强制只走 TURN
+  res.json({ iceServers, forceRelay: true });
 });
 
 // Create a new room

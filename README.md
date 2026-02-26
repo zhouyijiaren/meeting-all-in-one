@@ -151,11 +151,11 @@ npx expo start
 
 ### TURN 与 ICE 配置（服务端下发）
 
-**TURN 地址由服务端统一下发，前端不写死。** 加入房间前会请求 `GET /api/ice-servers`，用返回的 `iceServers`（含 STUN/TURN）建连；拉取失败时再用前端默认（仅 STUN）。
+**TURN 地址由服务端统一下发，前端不写死。** 加入房间前会请求 `GET /api/ice-servers`，仅使用返回的 `iceServers`（仅 TURN）建连；拉取失败时再用前端 TURN 配置兜底。
 
 - **配置位置**：在 **服务端** `server/.env` 里配置（见 `server/.env.example`）：
   - `TURN_URL`、`TURN_USERNAME`、`TURN_CREDENTIAL`：TURN 服务
-  - `FORCE_TURN=true`：仅测试时强制只走 TURN
+  - relay-only 模式固定强制 relay（仅 TURN，不再走 STUN/直连）
 - 前端 `apps/mobile/.env` 里的 `EXPO_PUBLIC_TURN_*` / `EXPO_PUBLIC_FORCE_TURN` 仅作**兜底**（例如接口失败时）。
 
 ### TURN 本地测试（强制走 TURN 验证）
@@ -168,6 +168,9 @@ docker compose -f docker-compose.turn.yml up -d
 ```
 
 本机测保持 `turn/coturn.conf` 里 `external-ip=127.0.0.1`；另一台设备测时改为本机局域网 IP（如 `192.168.1.100`），重启容器。
+若你是在**同一台机器双开浏览器**并且 `FORCE_TURN=true`，请保留 `allow-loopback-peers`，否则 coturn 可能报 `CREATE_PERMISSION 403 Forbidden IP` 导致“能进房但看不到对端视频”。
+同时 coturn 需设置非空 `cli-password`（示例配置已提供），否则会因 `allow_loopback_peers and empty cli password` 启动失败。
+同机强制 TURN 测试建议把 `relay-ip` 固定为 `127.0.0.1`（示例配置已默认），避免 relay 分配到容器/网桥地址导致权限拒绝。
 
 **2. 服务端配置 TURN（下发用）**
 
@@ -178,7 +181,7 @@ docker compose -f docker-compose.turn.yml up -d
 TURN_URL=turn:192.168.1.100:3478
 TURN_USERNAME=test
 TURN_CREDENTIAL=test123
-FORCE_TURN=true
+# relay-only 下固定强制 relay（仅 TURN）
 ```
 
 **3. 重启服务端与前端**
@@ -191,7 +194,7 @@ cd server && npm run dev
 cd apps/mobile && npx expo start
 ```
 
-开两个窗口进同一房间能通即说明 TURN 由服务端下发并生效；之后可去掉 `FORCE_TURN` 正常用「先直连，失败再走 TURN」。
+开两个窗口进同一房间能通即说明 TURN 由服务端下发并生效；若 `TURN_*` 未配置，relay-only 模式会拒绝建连（不会回退 STUN/直连）。
 
 ## Notes
 

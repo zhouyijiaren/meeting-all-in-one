@@ -7,8 +7,8 @@ export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // WebRTC Configuration
-// 仅 STUN：同局域网可直连；跨网（不同 WiFi/4G/公司网）易失败，需 TURN 中继。
-// 若需跨网互通，请自建 coturn 或使用 Twilio/Xirsys 等，并配置 EXPO_PUBLIC_TURN_* 环境变量。
+// relay-only 模式：仅使用 TURN，不使用 STUN 兜底。
+// 若未配置 TURN，浏览器将无法建立媒体连接（符合“只走远程中继”的验收要求）。
 const turnFromEnv =
   process.env.EXPO_PUBLIC_TURN_URL && process.env.EXPO_PUBLIC_TURN_USERNAME && process.env.EXPO_PUBLIC_TURN_CREDENTIAL
     ? [
@@ -20,16 +20,10 @@ const turnFromEnv =
       ]
     : [];
 
-export const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-  ...turnFromEnv,
-];
+export const ICE_SERVERS = [...turnFromEnv];
 
-// 设为 true 时强制只走 TURN（用于本地验证 TURN 是否可用，需同时配置 TURN）
-export const FORCE_TURN_RELAY =
-  process.env.EXPO_PUBLIC_FORCE_TURN === 'true' && turnFromEnv.length > 0;
+// relay-only：无论如何都强制 relay，杜绝 STUN/host 直连路径
+export const FORCE_TURN_RELAY = true;
 
 // App Theme Colors
 export const COLORS = {

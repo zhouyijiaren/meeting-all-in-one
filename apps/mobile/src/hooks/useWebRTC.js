@@ -91,14 +91,14 @@ export function useWebRTC(roomId, userId, userName) {
         );
       });
 
-      // 使用服务端下发的 ICE（含 TURN），不写死在前端
+      // 使用服务端下发的 ICE（仅 TURN），不写死在前端
       const iceConfig = await apiService.getIceServers();
       const iceLines = [];
       if (iceConfig?.iceServers?.length) {
         webRTCService.setIceServers(iceConfig.iceServers);
         webRTCService.setForceRelay(iceConfig.forceRelay);
         const hasTurn = iceConfig.iceServers.some(s => String(s.urls || '').startsWith('turn:'));
-        console.log('[WebRTC] ICE 配置: 服务端下发,', iceConfig.iceServers.length, '个服务器,', hasTurn ? '含 TURN' : '仅 STUN', iceConfig.forceRelay ? ', 强制走 TURN' : '');
+        console.log('[WebRTC] ICE 配置: 服务端下发,', iceConfig.iceServers.length, '个服务器,', hasTurn ? '仅 TURN' : '未配置 TURN', iceConfig.forceRelay ? ', 强制走 TURN' : '');
         iceConfig.iceServers.forEach((s, i) => {
           const urls = Array.isArray(s.urls) ? s.urls : [s.urls].filter(Boolean);
           urls.forEach(u => {
@@ -111,7 +111,7 @@ export function useWebRTC(roomId, userId, userName) {
         });
         setConnectionInfo(prev => (prev ? { ...prev, iceLines } : { apiUrl: API_URL, socketUrl: SOCKET_URL, iceLines }));
       } else {
-        console.log('[WebRTC] ICE 配置: 使用前端默认(仅 STUN)');
+        console.log('[WebRTC] ICE 配置: 使用前端默认(仅 TURN，未配置则为空)');
         DEFAULT_ICE_SERVERS.forEach((s, i) => {
           const urls = Array.isArray(s.urls) ? s.urls : [s.urls].filter(Boolean);
           urls.forEach(u => {
@@ -120,6 +120,9 @@ export function useWebRTC(roomId, userId, userName) {
             console.log(`  [ICE ${i + 1}] ${type} ${u}`);
           });
         });
+        if (!DEFAULT_ICE_SERVERS.length) {
+          console.warn('[WebRTC] 未配置任何 TURN 服务器，relay-only 模式下将无法建连');
+        }
       }
       setConnectionInfo(prev => (prev ? { ...prev, iceLines } : { apiUrl: API_URL, socketUrl: SOCKET_URL, iceLines }));
 
