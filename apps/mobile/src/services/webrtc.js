@@ -198,14 +198,6 @@ class WebRTCService {
     // Handle connection state changes
     pc.onconnectionstatechange = () => {
       console.log(`Connection state with ${remoteSocketId}: ${pc.connectionState}`);
-      // #region agent log
-      writeAgentClientLog('H5', 'apps/mobile/src/services/webrtc.js:onconnectionstatechange', 'peer connection state changed', {
-        remoteSocketId,
-        connectionState: pc.connectionState,
-        iceConnectionState: pc.iceConnectionState,
-        signalingState: pc.signalingState,
-      });
-      // #endregion
       if (pc.connectionState === 'connected') {
         this._logConnectionProtocol(pc, remoteSocketId);
       }
@@ -248,22 +240,9 @@ class WebRTCService {
     const pc = this.peerConnections.get(fromSocketId) || this.createPeerConnection(fromSocketId);
 
     try {
-      // #region agent log
-      writeAgentClientLog('H4', 'apps/mobile/src/services/webrtc.js:handleOffer:entry', 'handleOffer start', {
-        fromSocketId,
-        hasSdp: Boolean(offer?.sdp),
-        sdpType: offer?.type || null,
-      });
-      // #endregion
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      // #region agent log
-      writeAgentClientLog('H4', 'apps/mobile/src/services/webrtc.js:handleOffer:answer-created', 'answer created and local description set', {
-        fromSocketId,
-        localDescriptionType: pc.localDescription?.type || null,
-      });
-      // #endregion
       socketService.sendAnswer(fromSocketId, answer);
     } catch (error) {
       console.error('Error handling offer:', error);
@@ -275,31 +254,10 @@ class WebRTCService {
     const pc = this.peerConnections.get(fromSocketId);
     if (pc) {
       try {
-        // #region agent log
-        writeAgentClientLog('H4', 'apps/mobile/src/services/webrtc.js:handleAnswer:entry', 'handleAnswer start', {
-          fromSocketId,
-          hasSdp: Boolean(answer?.sdp),
-          sdpType: answer?.type || null,
-          signalingStateBefore: pc.signalingState,
-        });
-        // #endregion
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
-        // #region agent log
-        writeAgentClientLog('H4', 'apps/mobile/src/services/webrtc.js:handleAnswer:done', 'remote description set for answer', {
-          fromSocketId,
-          signalingStateAfter: pc.signalingState,
-          remoteDescriptionType: pc.remoteDescription?.type || null,
-        });
-        // #endregion
       } catch (error) {
         console.error('Error handling answer:', error);
       }
-    } else {
-      // #region agent log
-      writeAgentClientLog('H2', 'apps/mobile/src/services/webrtc.js:handleAnswer:no-pc', 'handleAnswer called without peer connection', {
-        fromSocketId,
-      });
-      // #endregion
     }
   }
 
@@ -308,37 +266,10 @@ class WebRTCService {
     const pc = this.peerConnections.get(fromSocketId);
     if (pc) {
       try {
-        // #region agent log
-        writeAgentClientLog('H4', 'apps/mobile/src/services/webrtc.js:handleIceCandidate:entry', 'handleIceCandidate start', {
-          fromSocketId,
-          candidateType: typeof candidate?.candidate === 'string'
-            ? (candidate.candidate.match(/\btyp\s+([a-zA-Z0-9]+)/)?.[1] || null)
-            : null,
-          iceConnectionStateBefore: pc.iceConnectionState,
-        });
-        // #endregion
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        // #region agent log
-        writeAgentClientLog('H4', 'apps/mobile/src/services/webrtc.js:handleIceCandidate:done', 'ice candidate added', {
-          fromSocketId,
-          iceConnectionStateAfter: pc.iceConnectionState,
-        });
-        // #endregion
       } catch (error) {
         console.error('Error handling ICE candidate:', error);
-        // #region agent log
-        writeAgentClientLog('H4', 'apps/mobile/src/services/webrtc.js:handleIceCandidate:error', 'ice candidate add failed', {
-          fromSocketId,
-          error: error?.message || String(error),
-        });
-        // #endregion
       }
-    } else {
-      // #region agent log
-      writeAgentClientLog('H2', 'apps/mobile/src/services/webrtc.js:handleIceCandidate:no-pc', 'handleIceCandidate called without peer connection', {
-        fromSocketId,
-      });
-      // #endregion
     }
   }
 
