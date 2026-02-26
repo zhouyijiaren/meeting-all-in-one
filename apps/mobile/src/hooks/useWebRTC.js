@@ -74,10 +74,26 @@ export function useWebRTC(roomId, userId, userName) {
       });
 
       socketService.on('answer', async ({ from, answer }) => {
+        // #region agent log
+        writeAgentClientLog('H4', 'apps/mobile/src/hooks/useWebRTC.js:answer', 'answer received', {
+          from,
+          hasSdp: Boolean(answer?.sdp),
+          sdpType: answer?.type || null,
+        });
+        // #endregion
         await webRTCService.handleAnswer(from, answer);
       });
 
       socketService.on('ice-candidate', async ({ from, candidate }) => {
+        // #region agent log
+        writeAgentClientLog('H4', 'apps/mobile/src/hooks/useWebRTC.js:ice-candidate', 'ice-candidate received', {
+          from,
+          hasCandidate: Boolean(candidate?.candidate),
+          candidateType: typeof candidate?.candidate === 'string'
+            ? (candidate.candidate.match(/\btyp\s+([a-zA-Z0-9]+)/)?.[1] || null)
+            : null,
+        });
+        // #endregion
         await webRTCService.handleIceCandidate(from, candidate);
       });
 

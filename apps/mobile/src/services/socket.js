@@ -75,10 +75,30 @@ class SocketService {
   }
 
   sendAnswer(to, answer) {
+    // #region agent log
+    writeAgentClientLog('H4', 'apps/mobile/src/services/socket.js:sendAnswer', 'sending answer', {
+      to,
+      socketId: this.socket?.id || null,
+      connected: Boolean(this.socket?.connected),
+      hasSdp: Boolean(answer?.sdp),
+      sdpType: answer?.type || null,
+    });
+    // #endregion
     this.socket?.emit('answer', { to, answer });
   }
 
   sendIceCandidate(to, candidate) {
+    // #region agent log
+    writeAgentClientLog('H4', 'apps/mobile/src/services/socket.js:sendIceCandidate', 'sending ice-candidate', {
+      to,
+      socketId: this.socket?.id || null,
+      connected: Boolean(this.socket?.connected),
+      hasCandidate: Boolean(candidate?.candidate),
+      candidateType: typeof candidate?.candidate === 'string'
+        ? (candidate.candidate.match(/\btyp\s+([a-zA-Z0-9]+)/)?.[1] || null)
+        : null,
+    });
+    // #endregion
     this.socket?.emit('ice-candidate', { to, candidate });
   }
 
