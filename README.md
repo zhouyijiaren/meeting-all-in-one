@@ -151,11 +151,11 @@ npx expo start
 
 ### TURN 与 ICE 配置（服务端下发）
 
-**TURN 地址由服务端统一下发，前端不写死。** 加入房间前会请求 `GET /api/ice-servers`，用返回的 `iceServers`（含 STUN/TURN）建连；拉取失败时再用前端默认配置兜底。
+**TURN 地址由服务端统一下发，前端不写死。** 加入房间前会请求 `GET /api/ice-servers`，仅使用返回的 `iceServers`（仅 TURN）建连；拉取失败时再用前端 TURN 配置兜底。
 
 - **配置位置**：在 **服务端** `server/.env` 里配置（见 `server/.env.example`）：
   - `TURN_URL`、`TURN_USERNAME`、`TURN_CREDENTIAL`：TURN 服务
-  - `FORCE_TURN`：可选覆盖；默认在配置 TURN 后强制 relay，设 `FORCE_TURN=false` 可恢复“直连优先，失败再 TURN”
+  - relay-only 模式固定强制 relay（仅 TURN，不再走 STUN/直连）
 - 前端 `apps/mobile/.env` 里的 `EXPO_PUBLIC_TURN_*` / `EXPO_PUBLIC_FORCE_TURN` 仅作**兜底**（例如接口失败时）。
 
 ### TURN 本地测试（强制走 TURN 验证）
@@ -181,8 +181,7 @@ docker compose -f docker-compose.turn.yml up -d
 TURN_URL=turn:192.168.1.100:3478
 TURN_USERNAME=test
 TURN_CREDENTIAL=test123
-# 可选：默认已强制 relay，保留为空即可；若要显式写也可以
-FORCE_TURN=true
+# relay-only 下固定强制 relay（仅 TURN）
 ```
 
 **3. 重启服务端与前端**
@@ -195,7 +194,7 @@ cd server && npm run dev
 cd apps/mobile && npx expo start
 ```
 
-开两个窗口进同一房间能通即说明 TURN 由服务端下发并生效；若想恢复「先直连，失败再走 TURN」，设置 `FORCE_TURN=false`。
+开两个窗口进同一房间能通即说明 TURN 由服务端下发并生效；若 `TURN_*` 未配置，relay-only 模式会拒绝建连（不会回退 STUN/直连）。
 
 ## Notes
 

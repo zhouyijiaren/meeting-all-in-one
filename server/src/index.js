@@ -89,39 +89,32 @@ function normalizeTurnUrl(raw) {
   return host ? `turn:${host}:${port || 3478}` : null;
 }
 
-function parseOptionalBoolean(raw) {
-  if (typeof raw !== 'string') return null;
-  const value = raw.trim().toLowerCase();
-  if (!value) return null;
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  return null;
-}
-
 app.get('/api/ice-servers', (req, res) => {
-  const iceServers = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-  ];
   const rawTurn = process.env.TURN_URL;
   const turnUser = process.env.TURN_USERNAME;
   const turnCred = process.env.TURN_CREDENTIAL;
   const turnUrl = normalizeTurnUrl(rawTurn);
   const hasTurn = !!(turnUrl && turnUser && turnCred);
-  if (hasTurn) {
-    // 同时下发 UDP 和 TCP，Zeabur 等平台可能只转发 TCP
-    iceServers.push({
+
+  // 仅 TURN 代理模式：未配置 TURN 视为错误，避免回落到 STUN/直连
+  if (!hasTurn) {
+    return res.status(500).json({
+      error: 'TURN is required in relay-only mode',
+      forceRelay: true,
+      iceServers: [],
+    });
+  }
+
+  // 同时下发 UDP 和 TCP，Zeabur 等平台可能只转发 TCP
+  const iceServers = [
+    {
       urls: [turnUrl, turnUrl + '?transport=tcp'],
       username: turnUser,
       credential: turnCred,
-    });
-  }
-  // 默认策略：只要服务端配置了 TURN，就强制走 relay，提升跨子网稳定性
-  // 可通过 FORCE_TURN=false 显式关闭，恢复“直连优先，失败再 TURN”
-  const forceTurnOverride = parseOptionalBoolean(process.env.FORCE_TURN);
-  const forceRelay = hasTurn && (forceTurnOverride ?? true);
-  res.json({ iceServers, forceRelay });
+    },
+  ];
+  // relay-only：强制只走 TURN
+  res.json({ iceServers, forceRelay: true });
 });
 
 // Create a new room
